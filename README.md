@@ -44,7 +44,41 @@ Groups can have other groups as children, use the table `childgroups`.
 
 ### Note on Variables
 This applies to `host` and `group` respectively.
-If no variables are needed either NULL it (actual MySQL `NULL` not the `string`) or use `{}`.
+
+#### For group
+In Mysql groupvars table you can add a variable for the group
+
+Ex:
+name: grpmsg / value: ici,psala,test1 / group_id: 1 / enable 1
+
+JSON result:
+```], 
+    "vars": {
+      "grpmsg": [
+        "ici", 
+        "pasla", 
+        "test1"
+      ], 
+
+```
+#### For host
+In Mysql hostvars table you can add a variable for the host
+Ex: 
+name: itemlist / value: iotop,htop / enable 1
+name: hostname / value: toto / enable 1
+
+
+JSON result:
+```
+"192.168.1.2": {
+        "hostname": "toto", 
+        "inventory_hostname": "toto", 
+        "itemlist": [
+          "iotop", 
+          "htop"
+        ]
+      }
+```
 
 
 ## LICENSE
