@@ -121,16 +121,35 @@ class MySQLInventory(object):
         # Fetch the Group info
         if groupname not in self.inventory:
             cursor = self.conn.cursor(pymysql.cursors.DictCursor)
-            sql = "SELECT variables FROM `group` WHERE name = %s"
+	    sql = "select v.name as grpname, v.value as grpvalue from groupvars v, `group` g where v.group_id = g.id and g.name = %s and v.enabled = 1"
             cursor.execute(sql, groupname)
-            groupinfo = cursor.fetchone()
+            groupinfo = cursor.fetchall()
+
             self.inventory[groupname] = dict()
-            if groupinfo['variables'] and groupinfo['variables'].strip():
-                try:
-                   self.inventory[groupname]['vars'] = json.loads(groupinfo['variables'])
-                   self.inventory[groupname]['hosts'] = list()
-                except:
-                   raise Exception('Group does not have valid JSON', groupname, groupinfo['variables'])
+	    JSON = None
+	    toto = 0
+
+            if groupinfo != None:
+		jsonout = {}
+	        for groupvars in groupinfo:
+		    if len(groupvars['grpvalue'].split(",")) > 1:
+		        jsonout[groupvars['grpname']] = groupvars['grpvalue'].split(",")
+		    else:
+		        jsonout[groupvars['grpname']] = groupvars['grpvalue']
+		    JSON = json.dumps(jsonout)
+
+	        if JSON:
+               	    try:
+                        self.inventory[groupname]['vars'] = json.loads(JSON)
+                        self.inventory[groupname]['hosts'] = list()
+                    except:
+                        raise Exception('Group does not have valid JSON', groupname)
+		else:
+		    self.inventory[groupname]['vars'] = json.loads('{}')
+		    self.inventory[groupname]['hosts'] = list()
+	    else:
+		self.inventory[groupname]['vars'] = json.loads('{}')
+		self.inventory[groupname]['hosts'] = list()
 
             if 'vars' not in self.inventory[groupname]:
                self.inventory[groupname] = list()
@@ -147,20 +166,32 @@ class MySQLInventory(object):
         cursor.execute(sql)
         data = cursor.fetchall()
 
+	previoushost = None
         for host in data:
+	    if previoushost != host['host']:
+	        jsonhostvar = {}
+		previoushost = host['host']
+
             self.process_group(host['group'])
 
             if 'hosts' in self.inventory[host['group']]:
-                self.inventory[host['group']]['hosts'].append(host['host'])
+		if host['host'] not in self.inventory[host['group']]['hosts']:
+                    self.inventory[host['group']]['hosts'].append(host['host'])
             else:
-                self.inventory[host['group']].append(host['host'])
+		if host['host'] not in self.inventory[host['group']]:
+                    self.inventory[host['group']].append(host['host'])
 
             dns_name = host['host']
-            if host['host_vars'] and host['host_vars'].strip():
+            if host['hostvars_value'] and host['hostvars_value'].strip():
                 try:
-                   cleanhost = json.loads(host['host_vars'])
+		   if len(host['hostvars_value'].split(",")) > 1:
+		       jsonhostvar[host['hostvars_name']] =  host['hostvars_value'].split(",")
+		   else:
+		       jsonhostvar[host['hostvars_name']] =  host['hostvars_value']
+		   JSONHOST = json.dumps(jsonhostvar)
+                   cleanhost = json.loads(JSONHOST)
                 except:
-                   raise Exception('Host does not have valid JSON', host['host'], host['host_vars'])
+                   raise Exception('Host does not have valid JSON', host['host'], host['hostvars_name'])
             else:
                 cleanhost = dict()
             cleanhost[self.facts_hostname_var] = host['hostname']
